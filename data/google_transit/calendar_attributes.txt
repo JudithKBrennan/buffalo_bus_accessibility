@@ -1,0 +1,4 @@
+service_id,service_description
+0,Weekday
+5,Saturday
+6,Sunday
