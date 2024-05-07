@@ -59,6 +59,27 @@ def filter_routes_by_current_time(all_routes):
     filtered_routes.drop('bus_start_time_dt', axis=1, inplace=True)
     return filtered_routes
 
+def convert_into_seconds(time):
+    """convert from "0 days 08:31:26" to seconds"""
+    time = str(time).split(' ')[-1]
+    h, m, s = map(int, time.split(':'))
+    return h*60*60 + m*60 + s
+
+def get_bus_routes():
+    routes_df = pd.read_csv('./routes_data.csv')
+    bus_routes = {}
+    for index, row in routes_df.iterrows():
+        pick_up_id = row['Pick_up_id']
+        drop_off_id = row['drop_off_id']
+        route_info = RouteInfo(convert_into_seconds(row['pick_up_time']), 
+                               convert_into_seconds(row['drop_off_time']), 
+                               row['trip_id'], 
+                               row['walking_distance'])
+        if (pick_up_id, drop_off_id) not in bus_routes:
+            bus_routes[(pick_up_id, drop_off_id)] = []
+        bus_routes[(pick_up_id, drop_off_id)].append(route_info)
+    return bus_routes
+
 def find_routes(bus_routes, location_to_stops, bus_pairs, origin_id, destination_id):
     all_routes = []
     is_feasible = True # Assume the bus pair is feasible - will be set to False if no routes are found
