@@ -27,40 +27,42 @@ def route_preferences(all_routes, time, origin_id, destination_id, preference = 
     filtered_routes['bus_riding_time_mins'] = filtered_routes['bus_riding_time']
     filtered_routes['waiting_time_mins'] = filtered_routes['waiting_time'] #waiting from start time to first bus time, can be removed
     filtered_routes['total_walking_time_mins'] = filtered_routes['total_walking_time']
-    filtered_routes['adjusted_total_time_mins'] = filtered_routes['adjusted_total_time']
+    filtered_routes['total_time_mins'] = filtered_routes['total_time']
 
-    time_cols = ['bus_riding_time_mins', 'waiting_time_mins', 'total_walking_time_mins', 'adjusted_total_time_mins']
+    time_cols = ['bus_riding_time_mins', 'waiting_time_mins', 'total_walking_time_mins', 'total_time_mins']
 
     #convert identical time columns to minutes for exponential calculations
     for col in time_cols:
         filtered_routes[col] = pd.to_datetime(filtered_routes[col], format='%H:%M:%S')
         filtered_routes[col] = filtered_routes[col].dt.hour * 60 + filtered_routes[col].dt.minute + filtered_routes[col].dt.second / 60
         
-    
     #time impedance function - will be used in part for accessibility measure
     #total_time_score is the value of the exponential time impedance function for total trip time (walking to/from buses + bus riding time)
     #walking_score is the value of the exponential time impedance function for total walking time only (walking to/from buses)
     #both might be used with different weights to calculate one single score for each optimal (based on preference) trip
 
-    filtered_routes['total_time_score'] = np.exp(-filtered_routes['adjusted_total_time_mins']**2 / beta)
+    filtered_routes['total_time_score'] = np.exp(-filtered_routes['total_time_mins']**2 / beta)
     #filtered_routes['waiting_score'] = np.exp(-filtered_routes['waiting_time_mins']**2 / beta) #will be used when 2-bus routes are used 
     filtered_routes['walking_score'] = np.exp(-filtered_routes['total_walking_time_mins']**2 / beta)
+    filtered_routes['preference'] = 0
 
     #locate the route with minimum walking distance
     min_walking_distance = filtered_routes.loc[filtered_routes['total_walk'].idxmin()]
 
     #locate the route with minimum total time
-    min_time = filtered_routes.loc[filtered_routes['adjusted_total_time'].idxmin()]
+    min_time = filtered_routes.loc[filtered_routes['total_time'].idxmin()]
     
     #return the trip that has the minimum overall time 
     if preference == 'min_time':
-        return pd.DataFrame([min_time], columns=['bus_used', 'trip_id', 'bus_start_time', 'bus_end_time', 'bus_riding_time', 'total_walk', 'total_walking_time',
-                                                              'adjusted_total_time','waiting_score','walking_score','total_time_score'])
+        min_time['preference'] = 'min_time'
+        return pd.DataFrame([min_time], columns=['origin_id','destination_id','bus_used', 'trip_id', 'bus_start_time', 'bus_end_time', 'bus_riding_time', 'total_walk', 
+                                                 'total_walking_time', 'total_time','waiting_score','walking_score','total_time_score','preference'])
     
     #return the trip that has the minimum walking distance/time 
     elif preference == 'min_walk':
-        return pd.DataFrame([min_walking_distance], columns=['bus_used', 'trip_id', 'bus_start_time', 'bus_end_time', 'bus_riding_time', 'total_walk', 'total_walking_time',
-                                                              'adjusted_total_time','waiting_score','walking_score','total_time_score'])
+        min_walking_distance['preference'] = 'min_walk'
+        return pd.DataFrame([min_walking_distance], columns=['origin_id','destination_id','bus_used', 'trip_id', 'bus_start_time', 'bus_end_time', 'bus_riding_time', 'total_walk', 
+                                                             'total_walking_time', 'total_time','waiting_score','walking_score','total_time_score','preference'])
     
     #TODO: for now, we have two preferences... will be expanded
     else:
