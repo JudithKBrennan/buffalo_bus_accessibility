@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 """
 TODO: team 3 must implement this function
 
@@ -33,63 +34,120 @@ that we can remove location_to_stops as input because the needed info is already
 contained more efficiently in bus_pairs. However, I will leave it as an argument for now,
 and team 3 can remove it later if it isn't needed.
 """
-def find_routes(bus_routes, location_to_stops,
-                bus_pairs, origin_id, destination_id):
+
+# support function
+def seconds_to_hms(seconds):
+    """
+    to convert seconds to HH:MM:SS format
+    """
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{hours:02}:{minutes:02}:{seconds:02}" 
+
+def filter_routes_by_current_time(all_routes):
+    """
+    Filter out routes where the current time is greater than the pick-up time
+    """   
+    # Get the current time as a datetime object
+    now = datetime.now()
+    # Convert 'bus_start_time' from HH:MM:SS to today's datetime for comparison
+    all_routes['bus_start_time_dt'] = pd.to_datetime(now.date().isoformat() + ' ' + all_routes['bus_start_time'])
+    # Filter out rows where the current time is greater than the pick-up time
+    filtered_routes = all_routes[all_routes['bus_start_time_dt'] > now]
+    # Drop the temporary datetime column if no longer needed
+    filtered_routes.drop('bus_start_time_dt', axis=1, inplace=True)
+    return filtered_routes
+
+def find_routes(bus_routes, location_to_stops, bus_pairs, origin_id, destination_id):
     all_routes = []
+    is_feasible = True # Assume the bus pair is feasible - will be set to False if no routes are found
+
+    # Extract data from location_to_stops
+    df_origin = location_to_stops['origin']
+    df_destination = location_to_stops['destination']
+    df_od = location_to_stops['origin2destination'] 
+    
+    # direct walking distance and time from origin to destination
+    direct_dist = df_od.loc[(df_od['origin_id'] == origin_id) & (df_od['destination_id'] == destination_id), 'distance'].iloc[0]
+    direct_time = df_od.loc[(df_od['origin_id'] == origin_id) & (df_od['destination_id'] == destination_id), 'time'].iloc[0]
+
+    # Get the lat and lon of the origin and destination
+    origin_lat = df_origin.loc[df_origin['id'] == origin_id, 'lat'].iloc[0]
+    origin_lon = df_origin.loc[df_origin['id'] == origin_id, 'lon'].iloc[0]
+    destination_lat = df_destination.loc[df_destination['id'] == destination_id, 'lat'].iloc[0]
+    destination_lon = df_destination.loc[df_destination['id'] == destination_id, 'lon'].iloc[0]
 
     # Iterate through each candidate bus pair
     for bus_pair in bus_pairs:
         pick_up_id = bus_pair.pick_up_id
         drop_off_id = bus_pair.drop_off_id
-
-        # Retrieve the list of RouteInfo objects for the given bus stop pair
         route_infos = bus_routes.get((pick_up_id, drop_off_id), [])
 
-        # Iterate through each RouteInfo object
+        if not route_infos:
+            is_feasible = False
+
+        # Process each RouteInfo object
         for route_info in route_infos:
-            pick_up_time = seconds_to_hms(route_info.pick_up_time)
-            drop_off_time = seconds_to_hms(route_info.drop_off_time)
-            bus_riding_time = seconds_to_hms(route_info.drop_off_time - route_info.pick_up_time)
-
-            # Calculate walking times and distances
-            walk_to_start_time = seconds_to_hms(bus_pair.time_walk_pick_up)
-            walk_to_destination_time = seconds_to_hms(bus_pair.time_walk_drop_off)
-
-            total_time = seconds_to_hms(route_info.total_time + bus_pair.time_walk_pick_up + bus_pair.time_walk_drop_off)
-
-            start_time = seconds_to_hms(route_info.pick_up_time - bus_pair.time_walk_pick_up)
-            end_time = seconds_to_hms(route_info.drop_off_time + bus_pair.time_walk_drop_off)
-
+            # route_dict = create_route_dict(route_info, bus_pair, origin_id, destination_id)
             route_dict = {
-                'trip_id': None,
-                'bus_start_time': pick_up_time,
-                'bus_end_time': drop_off_time,
-                'bus_riding_time': bus_riding_time,
+                'trip_id': route_info.trip_id,
+                'bus_start_time': seconds_to_hms(route_info.pick_up_time),
+                'bus_end_time': seconds_to_hms(route_info.drop_off_time),
+                'bus_riding_time': seconds_to_hms(route_info.drop_off_time - route_info.pick_up_time),
                 'waiting_time': '00:00:00',
-                'walk_to_start_time': walk_to_start_time,
-                'walk_to_destination_time': walk_to_destination_time,
+                'walk_to_start_time': seconds_to_hms(bus_pair.time_walk_pick_up),
+                'walk_to_destination_time': seconds_to_hms(bus_pair.time_walk_drop_off),
                 'walk_to_start': bus_pair.dist_walk_pick_up,
                 'walk_to_destination': bus_pair.dist_walk_drop_off,
-                'poi_name': destination_id,
-                'start_name': origin_id,
-                'origin_lat': None,
-                'origin_lon': None,
-                'destination_lat': None,
-                'destination_lon': None,
+                'total_walk_time': seconds_to_hms(bus_pair.time_walk_pick_up + bus_pair.time_walk_drop_off),
+                'destination_id': destination_id,
+                'origin_id': origin_id,
+                'origin_lat': origin_lat,
+                'origin_lon': origin_lon,
+                'destination_lat': destination_lat,
+                'destination_lon': destination_lon,
+                'start_stop_id': pick_up_id,
+                'end_stop_id': drop_off_id,
                 'total_walk': bus_pair.dist_walk_pick_up + bus_pair.dist_walk_drop_off,
-                'total_time': total_time,
-                'best_walk': False,
-                'best_time': False,
-                'start_time': start_time,
-                'end_time': end_time
+                'total_time': seconds_to_hms(route_info.total_time + bus_pair.time_walk_pick_up + bus_pair.time_walk_drop_off),
+                'start_time': seconds_to_hms(route_info.pick_up_time - bus_pair.time_walk_pick_up),
+                'end_time': seconds_to_hms(route_info.drop_off_time + bus_pair.time_walk_drop_off),
+                'bus_used': 1,  # Indicating that one bus is used,
+                'is_feasible': is_feasible
             }
-
             all_routes.append(route_dict)
+    
+    # add the direct walking route
+    direct_walk_route = {
+        'trip_id': None,
+        'bus_start_time': None,
+        'bus_end_time': None,
+        'bus_riding_time': None,
+        'waiting_time': None,
+        'walk_to_start_time': None,
+        'walk_to_destination_time': None,
+        'walk_to_start': None,
+        'walk_to_destination': None,
+        'total_walk_time': None,
+        'destination_id': destination_id,
+        'origin_id': origin_id,
+        'origin_lat': origin_lat,
+        'origin_lon': origin_lon,
+        'destination_lat': destination_lat,
+        'destination_lon': destination_lon,
+        'start_stop_id': None,
+        'end_stop_id': None,
+        'total_walk': direct_dist,
+        'total_time': seconds_to_hms(direct_time),
+        'start_time': None,
+        'end_time': None,
+        'bus_used': 0,  # no bus used, walking only
+        'is_feasible': is_feasible
+    }
+    all_routes.append(direct_walk_route)
+
+    # filter out the routes based on the current time
+    all_routes = filter_routes_by_current_time(pd.DataFrame(all_routes))
 
     return pd.DataFrame(all_routes)
-
-def seconds_to_hms(seconds):
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    seconds = seconds % 60
-    return f"{hours:02}:{minutes:02}:{seconds:02}"
