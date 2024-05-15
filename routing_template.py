@@ -17,10 +17,9 @@ import os
 import pandas as pd
 import numpy as np
 import veroviz as vrv
-from code.precompute import pre_compute_bus_routes
-from code.precompute import RouteInfo
+from datetime import datetime
+from datetime import timedelta
 from code.candidate_routes import candidate_bus_pairs
-from code.candidate_routes import CandidateRoute
 from code.find_all_routes import find_routes
 from code.use_preferences import route_preferences
 
@@ -131,7 +130,7 @@ def get_walking_df(df, origins, destinations, filepath, overwrite=False):
 
                 stops = stops[stops['id'] != 'point_of_interest']
                 stops['id'] = point_of_interest['name']
-                stops['stop_id'] = stops['stop_id'].astype(int)
+                # stops['stop_id'] = stops['stop_id'].astype(int)
 
                 return stops
 
@@ -349,10 +348,57 @@ def vero_viz_node_dataframe(df):
 if __name__ == '__main__':
     df, origins, destinations, input = initialize()  # This has already been implemented
 
+    # support function
+    def seconds_to_hms(seconds):
+        """
+        to convert seconds to HH:MM:SS format
+        """
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        seconds = seconds % 60
+        return f"{hours:02}:{minutes:02}:{seconds:02}" 
+
+    def convert_into_seconds(time):
+        total_seconds = 0
+        parts = time.split()
+        if len(parts) == 1:
+            time_parts = parts[0].split(":")
+            total_seconds += int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
+        else:
+            if parts[0] != "0":
+                total_seconds += int(parts[0]) * 86400
+            time_parts = parts[-1].split(":")
+            total_seconds += int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
+        return total_seconds
+
     # Obtain the bus route dictionary (does NOT consider walking, origins, or destinations)
     print("Getting bus route info...")
-    bus_routes = pre_compute_bus_routes()  # TODO: team 0 must implement this function
 
+    # Define the RouteInfo class
+    class RouteInfo:
+        def __init__(self, trip_id, pick_up_time, drop_off_time, walking_distance=0):
+            self.trip_id = trip_id
+            self.pick_up_time = pick_up_time
+            self.drop_off_time = drop_off_time
+            self.walking_distance = walking_distance
+            #self.total_time = (drop_off_time - pick_up_time).total_seconds()
+
+    # Read the CSV file into a DataFrame
+    routes_df = pd.read_csv('data/routes_data.csv')
+
+    # Initialize an empty dictionary to store the data
+    bus_routes = {}
+
+    for index, row in routes_df.iterrows():
+        pick_up_id = row['pick_up_id']
+        drop_off_id = row['drop_off_id']
+        route_info = RouteInfo(row['trip_id'],
+                            convert_into_seconds(row['pick_up_time']), 
+                            convert_into_seconds(row['drop_off_time']), 
+                            row['walking_distance'])
+        if (pick_up_id, drop_off_id) not in bus_routes:
+            bus_routes[(pick_up_id, drop_off_id)] = []
+        bus_routes[(pick_up_id, drop_off_id)].append(route_info)
     print("Beginning Algorithm...")
 
     """
@@ -387,7 +433,7 @@ if __name__ == '__main__':
 
     # Do not recalculate the routes if they already exist
     routes_file_path = f"experiments/{input['experiment_id']}/routes.csv"
-    if os.path.exists(routes_file_path) and input['overwrite_routes']:
+    if not os.path.exists(routes_file_path):
         # Loop through the origins and destinations to find all routes
         routes = pd.DataFrame()
         for _, origin_row in origins.iterrows():
@@ -395,15 +441,19 @@ if __name__ == '__main__':
                 bus_pairs = candidate_bus_pairs(origin_id=origin_row['name'],
                                                 destination_id=destination_row['name'],
                                                 location_to_stops=location_to_stops)
+
                 these_routes = find_routes(bus_routes=bus_routes,
-                                           location_to_stops=location_to_stops,
-                                           bus_pairs=bus_pairs,
-                                           origin_id=origin_row['name'],
-                                           destination_id=destination_row['name'])
+                                            location_to_stops=location_to_stops,
+                                            bus_pairs=bus_pairs,
+                                            origin_id=origin_row['name'],
+                                            destination_id=destination_row['name'])
                 routes = pd.concat([routes, these_routes])
         routes.reset_index(drop=True, inplace=True)
         routes.to_csv(routes_file_path, index=False)
-
+        print("Complete!")
+    else:
+        routes = pd.read_csv(routes_file_path)
+    
     # Analyze the routes
     best_routes = pd.DataFrame()
     for time in range(60 * 60 * 5, 60 * 60 * 22, input['time_inc']):  # 5am to 10pm
@@ -411,14 +461,16 @@ if __name__ == '__main__':
             for _, destination_row in destinations.iterrows():
                 these_best_routes = route_preferences(time=time,
                                                       origin_id=origin_row['name'],
-                                                      destination_id=destination_row['name']
-                                                      )  # TODO: team 5 add more arguments!
+                                                      destination_id=destination_row['name'],
+                                                      all_routes=routes,
+                                                      preference='min_time',
+                                                      beta=140
+                                                      )
                 best_routes = pd.concat([best_routes, these_best_routes])
+                
     best_routes.reset_index(drop=True, inplace=True)
     best_routes.to_csv(f"experiments/{input['experiment_id']}/best_routes.csv",
                        index=False)
 
     # TODO: use best_routes to create accessibility metrics
     # TODO: plot the accessibility metrics
-
-    print("Complete!")
