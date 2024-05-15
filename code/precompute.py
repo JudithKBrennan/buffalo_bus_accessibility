@@ -252,6 +252,4 @@ def pre_compute_bus_routes():
         pickle.dump(routes, f)
     return routes
 
-pre_compute_bus_routes()
-
 
