@@ -1,0 +1,7 @@
+{
+    "experiment_id": "BNMC1",
+    "day_of_week": "Weekday",
+    "walk_speed": 1.4,
+    "overwrite_routes": true,
+    "time_inc": 900
+}
