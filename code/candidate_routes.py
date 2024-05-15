@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 """
@@ -62,13 +61,13 @@ def candidate_bus_pairs(origin_id, destination_id, location_to_stops):
             total_walk_distance = stop_origin['distance'] + stop_destination['distance']
             total_walk_time = stop_origin['time'] + stop_destination['time']
 
-            # Filter out unreasonable routes
+            # Skip if total walking distance/time exceeds direct walking
             if total_walk_distance > direct_dist or total_walk_time > direct_time:
-                continue  # Skip if total walking distance/time exceeds direct walking
+                continue 
 
-            if df_origin['stop_id'] == df_destination['stop_id']:
-                continue  # Skip same stop get on/off
-
+            # Skip pairs where origin and destination are the same stop
+            if stop_origin['stop_id'] == stop_destination['stop_id']:
+                continue
 
             candidate_route = CandidateRoute(
                 pick_up_id=stop_origin['stop_id'],
@@ -78,6 +77,6 @@ def candidate_bus_pairs(origin_id, destination_id, location_to_stops):
                 time_walk_pick_up=stop_origin['time'],
                 time_walk_drop_off=stop_destination['time']
             )
-            candidate_routes.append(candidate_route)
 
+            candidate_routes.append(candidate_route)
     return candidate_routes
