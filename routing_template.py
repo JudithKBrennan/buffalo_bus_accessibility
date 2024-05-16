@@ -450,12 +450,14 @@ if __name__ == '__main__':
                 routes = pd.concat([routes, these_routes])
         routes.reset_index(drop=True, inplace=True)
         routes.to_csv(routes_file_path, index=False)
-        print("Complete!")
+        
     else:
         routes = pd.read_csv(routes_file_path)
-    
+    print("All routes dataframe created...")  
+      
     # Analyze the routes
     best_routes = pd.DataFrame()
+    print("Calculating best routes...")
     for time in range(60 * 60 * 5, 60 * 60 * 22, input['time_inc']):  # 5am to 10pm
         for _, origin_row in origins.iterrows():
             for _, destination_row in destinations.iterrows():
@@ -463,7 +465,7 @@ if __name__ == '__main__':
                                                       origin_id=origin_row['name'],
                                                       destination_id=destination_row['name'],
                                                       all_routes=routes,
-                                                      preference='min_time',
+                                                      preference='min_walk',
                                                       beta=140
                                                       )
                 best_routes = pd.concat([best_routes, these_best_routes])
