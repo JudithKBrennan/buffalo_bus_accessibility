@@ -1,0 +1,2 @@
+name,block_id,lat,lon,poi_type,is_in_region,region_name,zone_id,is_group
+1,BNMC,42.90126267,-78.86700661,BNMC,TRUE,BNMC,tbd,FALSE
