@@ -23,23 +23,49 @@ from code.candidate_routes import candidate_bus_pairs
 from code.find_all_routes import find_routes
 from code.use_preferences import route_preferences
 
-
-# Finds how long it takes to walk to/from every bus stop (uses VeroViz).
-# this is a modification of 'stops_df' in the previous code
-"""
-Purpose:
+def get_walking_df(df, origins, destinations, filepath, overwrite=False):
+    '''
     Compute the walking times and distances from:
         -origins to bus stops
         -bus stops to destinations
         -origins to destinations
+    
+    Parameters
+    ----------
+    df: pd.DataFrame
+    origins: pd.DataFrame
+    destinations: pd.DataFrame
+    filepath: str
+        path to the experiment being run
+    
+    Returns
+    -------
+    location_to_stops: pd.DataFrame
 
-This function has already been implemented.
-Do not worry about the details of this function.
-Focus on understanding the output. The output is described
-later in this code. Do Ctrl-F "Structure of location_to_stops" to
-see the description.
-"""
-def get_walking_df(df, origins, destinations, filepath, overwrite=False):
+    Notes
+    -----
+    Structure of location_to_stops (a dictionary with three keys):
+
+    location_to_stops = {
+        'origin': pandas dataframe with the following columns:
+                    'stop_id' (the bus stop id),
+                    'id' (the origin id),
+                    'lat', 'lon' (the lat and lon of the bus stop, can probably ignore this!),
+                    'time', 'distance' (the walking time (seconds) and distance (meters) between the origin and the bus stop)
+
+        'destination': pandas dataframe with the same columns as above except this dataframe
+                        is computing the walking distance from the stops to the destinations
+
+        'origin2destination': pandas dataframe with the following columns:
+                    'origin_id', 'destination_id',
+                    'time', 'distance' (the walking time and distance between origin and destination)
+    }
+
+    Moreover, after running the code, you can see these three pandas dataframes.
+    They are saved as csv files in the experiment folder.
+    """
+    '''
+
     location_to_stops = {
         'origin': None,
         'destination': None,
@@ -172,17 +198,13 @@ def get_walking_df(df, origins, destinations, filepath, overwrite=False):
     return location_to_stops
 
 
-"""
-This function has already been implemented.
-You could look at the first few lines to see what arguments you can pass to this code.
-Specifically you will want to use --experiment_id to set the experiment.
-
-Purpose:
-    Parse the arguments.
-    Read in the data files.
-Output:
-"""
 def initialize():
+    '''
+    Purpose:
+        Parse the arguments.
+        Read in the data files.
+    Output:
+    '''
     # Set up the argument parser
     parser = argparse.ArgumentParser(description='Process input parameters for the experiment.')
     parser.add_argument('--experiment_id', default="test", help='Unique identifier for the experiment.')
@@ -401,31 +423,6 @@ if __name__ == '__main__':
         bus_routes[(pick_up_id, drop_off_id)].append(route_info)
     print("Beginning Algorithm...")
 
-    """
-    This function computes walking times and distances (this is where we use/used VeroViz).
-    I completed the implementation of this function. Do not bother with looking at this function,
-    only understand the output, which is described below.
-
-    Structure of location_to_stops (a dictionary with three keys):
-
-    location_to_stops = {
-        'origin': pandas dataframe with the following columns:
-                    'stop_id' (the bus stop id),
-                    'id' (the origin id),
-                    'lat', 'lon' (the lat and lon of the bus stop, can probably ignore this!),
-                    'time', 'distance' (the walking time (seconds) and distance (meters) between the origin and the bus stop)
-
-        'destination': pandas dataframe with the same columns as above except this dataframe
-                        is computing the walking distance from the stops to the destinations
-
-        'origin2destination': pandas dataframe with the following columns:
-                    'origin_id', 'destination_id',
-                    'time', 'distance' (the walking time and distance between origin and destination)
-    }
-
-    Moreover, after running the code, you can see these three pandas dataframes. They are
-    saved as csv files in the experiment folder.
-    """
     location_to_stops = get_walking_df(df=df,
                                        origins=origins, destinations=destinations,
                                        filepath=f"experiments/{input['experiment_id']}/",
