@@ -1,3 +1,9 @@
+'''
+Usage:
+cd project/
+python code/heatmap.py --experiment_id=BNMC --preference=min_time
+'''
+
 #Modules
 import argparse
 import folium
@@ -9,9 +15,8 @@ import numpy as np
 from shapely.geometry import Point, box
 import veroviz as vrv
 #Functions
-from utils import getDirectory, getResults, checkPreference
+from accessiblity.utils import getDirectory, getAllRoutes, checkPreference, getAPIKey
 ORS_API_KEY = getAPIKey()
-
 
 
 def aggregateResults(df: pd.DataFrame):
@@ -178,7 +183,7 @@ if __name__ == '__main__':
 
     preference = checkPreference(args.preference)
     directory = getDirectory(args.experiment_id)
-    all_routes = getResults(directory)
+    all_routes = getAllRoutes(directory)
 
     createHeatmap(all_routes, preference)
     
