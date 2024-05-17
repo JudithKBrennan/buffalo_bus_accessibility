@@ -34,7 +34,7 @@ def route_preferences(all_routes, time, origin_id, destination_id, preference='m
 
     # Time impedance function
     all_routes['total_time_score'] = np.exp(-((all_routes['total_time'] / 60) ** 2) / beta)
-    all_routes['walking_score'] = np.exp(-((all_routes['total_walk_time'] / 60) ** 2) / beta)
+    all_routes['walking_score'] = np.exp(-((all_routes['total_walk'] / 60) ** 2) / beta)
     all_routes['time'] = time
 
     # Filter the routes based on the origin and destination
@@ -44,7 +44,7 @@ def route_preferences(all_routes, time, origin_id, destination_id, preference='m
                                  (all_routes['end_time'] <= float((time + 3600)))]
 
     # Locate the route with minimum walking distance & minimum total time 
-    min_walking_distance_idx = filtered_routes['total_walk_time'].idxmin()
+    min_walking_distance_idx = filtered_routes['total_walk'].idxmin()
     min_time_idx = filtered_routes['total_time'].idxmin()
 
     # Return the trip that has the minimum overall time 
