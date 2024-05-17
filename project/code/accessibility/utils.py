@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import sys
 import veroviz as vrv
+import numpy as np
 
 def getDirectory(experiment_id: str):
     '''
@@ -28,24 +29,12 @@ def getDirectory(experiment_id: str):
             return directory
     except FileNotFoundError as e:
         print(e)
-        directory = input("Enter the correct path to the experiment folder: ")
+        directory = input("Enter the correct path to the experiment folder, ensuring the path ends with a \ ")
         return directory
 
-def getResults(directory: str):
+def getResults(directory: str, origin_id: int, destination_id: int, time: int, preference: str):
     '''
-    Return pd dataframe taken from results.csv within the experiment folder
-
-    Parameters
-    ----------
-    directory
-        path to the experiment folder
-
-    Notes
-    -----
-    Example usage: 
-    experiment_id = "BNMC" | 
-    directory = f"../../experiments/{experiment_id}/" |
-    all_routes = getResults(directory)
+    Return a single route from the pd dataframe taken from results.csv within the experiment folder
 
     '''
     results_path = directory+"results.csv"
@@ -53,18 +42,27 @@ def getResults(directory: str):
         if not os.path.exists(results_path):
             raise FileNotFoundError(f"Results of experiment not found!")
         else:
-            return pd.read_csv(results_path)
+            all_routes = pd.read_csv(results_path)
+            filtered_routes = all_routes[(all_routes['origin_id'] == origin_id) & 
+                                (all_routes['destination_id'] == destination_id) &
+                                (all_routes['start_time'] >= float(time)) &
+                                (all_routes['end_time'] <= float((time + 3600))) &
+                                (all_routes['preference'] == preference)
+                                ]
+            earliest_route = filtered_routes.loc[filtered_routes['start_time'].idxmin()]
+            
+            return earliest_route
+
     except FileNotFoundError as e:
-        print(e)
         #TODO replace with instructions on how to run the experiment and get results
-        sys.exit(1)
+        sys.exit(e)
 
 def checkPreference(preference: str):
     '''
     Check that the preference entered is valid
     '''
     try:
-        if preference != "min_time" or preference != "min_walk":
+        if not ((preference == "min_time") or (preference == "min_walk")):
             raise ValueError(f"Invalid Preference. Preference must be min_time or min_walk")
         else:
             return preference
@@ -89,3 +87,33 @@ def getAPIKey():
     '''
     print(vrv.checkVersion())
     return os.environ['ORSKEY']
+
+def getAllRoutes(directory: str):
+    '''
+    Read dataframe with all routes from the experiment
+    '''
+    results_path = directory+"results.csv"
+    try:
+        if not os.path.exists(results_path):
+            raise FileNotFoundError(f"Results of experiment not found!")
+        else:
+            all_routes = pd.read_csv(results_path)
+            return all_routes
+    except FileNotFoundError as e:
+        #TODO replace with instructions on how to run the experiment and get results
+        sys.exit(e)
+
+def getAccessibilityScores(directory: str):
+    '''
+    Read list of all the acecssiblity scores
+    '''
+    score_path = directory+"AI\\ai_1.txt"
+    try:
+        if not os.path.exists(score_path):
+            raise FileNotFoundError(f"Accessibility scores not found!")
+        else:
+            data = np.loadtxt(score_path, delimiter=',')
+            return data
+    except FileNotFoundError as e:
+        #TODO replace with instructions on how to run the file to get accessibility scores
+        sys.exit(e)
